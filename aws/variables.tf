@@ -32,12 +32,12 @@ variable "vpc_private_add" {
   default = 128
 }
 
-variable "tailscale_id" {
+variable image_tag {
   type = string
-  sensitive = true
+  default = ""
 }
 
-variable "tailscale_secret" {
+variable "route_53_zone" {
   type = string
-  sensitive = true
+  description = "The zone which will hold the demo DNS record. Not included with terraform state."
 }

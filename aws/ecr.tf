@@ -1,6 +1,7 @@
 resource "aws_ecr_repository" "k8s_demo" {
   name = "k8s-demo-repo"
   image_tag_mutability = "MUTABLE"
+  force_delete = true
 }
 
 # Use for pulling images into minikube. You will need to set up credentials in the AWS console

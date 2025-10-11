@@ -1,0 +1,17 @@
+provider:
+  name: aws
+
+extraArgs:
+  - --aws-zone-type=public
+  - --aws-assume-role=${role_arn}
+
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: ${role_arn}
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kube-prometheus-stack
