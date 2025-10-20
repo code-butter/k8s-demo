@@ -10,18 +10,12 @@ terraform {
     helm = {
       source = "hashicorp/helm"
     }
-    # grafana = {
-    #   source  = "grafana/grafana"
-    #   version = "~> 3.25"
-    # }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = ">= 1.7.0"
+    }
   }
 }
-
-# provider "grafana" {
-#   url = "http://grafana-k8s-demo.${var.route_53_zone}"
-#   auth = "testpassword1!"
-# }
-
 
 provider "aws" {
   region = var.aws_region
@@ -48,13 +42,27 @@ provider "helm" {
   }
 }
 
+// https://github.com/gavinbunney/terraform-provider-kubectl
+provider "kubectl" {
+  host = local.k8s_auth.host
+  cluster_ca_certificate = local.k8s_auth.ca_cert
+  token = local.k8s_auth.token
+  load_config_file = false
+}
+
 locals {
   cluster_name = "k8s-demo"
+  example_name = "k8s-demo"
+  example_fqdn = "${local.example_name}.${var.route_53_zone}"
   k8s_auth = {
     host = data.aws_eks_cluster.k8s_demo.endpoint,
     ca_cert = base64decode(data.aws_eks_cluster.k8s_demo.certificate_authority[0].data),
     token = data.aws_eks_cluster_auth.k8s_demo.token
   }
+}
+
+data "http" "myip" {
+  url = "https://ipv4.icanhazip.com"
 }
 
 data "aws_eks_cluster" "k8s_demo" {
@@ -91,10 +99,6 @@ module "vpc" {
   create_igw = true
 }
 
-data "http" "myip" {
-  url = "https://ipv4.icanhazip.com"
-}
-
 // See configuration options here: https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
@@ -105,6 +109,8 @@ module "eks" {
   endpoint_public_access = true
   endpoint_private_access = true
   endpoint_public_access_cidrs = ["${chomp(data.http.myip.response_body)}/32"]
+
+
 
   compute_config = {
     enabled = true
@@ -124,10 +130,22 @@ module "apps" {
   source = "../apps"
   app_image = "${aws_ecr_repository.k8s_demo.repository_url}:${var.image_tag}"
   pull_image = false
-  app_host = "k8s-demo.${var.route_53_zone}"
-  app_service_annotations = {
-    "external-dns.alpha.kubernetes.io/hostname": "k8s-demo.${var.route_53_zone}"
+  app_host = local.example_fqdn
+  app_replicas = length(module.vpc.private_subnets) // Run one instance per subnet
+  // Reference: https://github.com/kubernetes-sigs/aws-load-balancer-controller/blob/main/docs/guide/ingress/annotations.md
+  app_ingress_annotations = {
+    "alb.ingress.kubernetes.io/certificate-arn" = aws_acm_certificate.example_app.arn
+    "alb.ingress.kubernetes.io/listen-ports" = jsonencode([{ HTTP = 80 }, { HTTPS = 443}])
+    "alb.ingress.kubernetes.io/actions.ssl-redirect" = jsonencode({
+      Type = "redirect",
+      RedirectConfig = {
+        Protocol = "HTTPS"
+        Port = "443"
+        "StatusCode" = "HTTP_301"
+      }
+    })
   }
+  https_redirect_annotation = "ssl-redirect"
   depends_on = [
     kubernetes_ingress_class_v1.alb_class
   ]

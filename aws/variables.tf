@@ -5,13 +5,13 @@ variable "aws_account_id" {
 variable "aws_region" {
   type = string
   description = "The region used for the project"
-  default = "us-east-1"
+  default = "us-east-2"
 }
 
 variable "aws_azs" {
   type = list(string)
   description = "The AWS availability zones used for high availability subnets"
-  default = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  default = ["us-east-2a", "us-east-2b", "us-east-2c"]
 }
 
 variable "vpc_cidr" {
@@ -41,3 +41,4 @@ variable "route_53_zone" {
   type = string
   description = "The zone which will hold the demo DNS record. Not included with terraform state."
 }
+

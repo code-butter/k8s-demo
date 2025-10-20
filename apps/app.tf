@@ -13,7 +13,7 @@ resource "kubernetes_deployment" "app" {
     delete = "3m"
   }
   spec {
-    replicas = "3"
+    replicas = var.app_replicas
     progress_deadline_seconds = 180
 
     selector {
@@ -58,7 +58,6 @@ resource "kubernetes_deployment" "app" {
   }
 }
 
-// This creates an NLB in AWS by default
 resource "kubernetes_service" "app" {
   metadata {
     name = "demo-http"
@@ -66,7 +65,7 @@ resource "kubernetes_service" "app" {
   }
   spec {
     selector = local.app_labels
-    load_balancer_class = "eks.amazonaws.com/nlb"
+    load_balancer_class = "eks.amazonaws.com/nlb" // TODO: extract this out to a variable
     port {
       name = "http"
       port = 80
@@ -81,11 +80,30 @@ resource "kubernetes_service" "app" {
 resource "kubernetes_ingress_v1" "app" {
   metadata {
     name = "example-app"
+    annotations = var.app_ingress_annotations
   }
+
   spec {
     rule {
       host = var.app_host
       http {
+
+        dynamic "path" {
+          for_each = var.https_redirect_annotation != null ? [1] : []
+          content {
+            path = "/"
+            path_type = "Prefix"
+            backend {
+              service {
+                name = var.https_redirect_annotation
+                port {
+                  name = "use-annotation"
+                }
+              }
+            }
+          }
+        }
+
         path {
           path = "/"
           path_type = "Prefix"
@@ -101,4 +119,5 @@ resource "kubernetes_ingress_v1" "app" {
       }
     }
   }
+
 }

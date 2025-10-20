@@ -1,6 +1,7 @@
 // Reference: https://docs.aws.amazon.com/eks/latest/userguide/auto-configure-alb.html
-resource "kubernetes_manifest" "alb_class_params" {
-  manifest = {
+
+locals {
+  alb_class_params = {
     "apiVersion" = "eks.amazonaws.com/v1"
     "kind" = "IngressClassParams"
     "metadata" = {
@@ -12,11 +13,15 @@ resource "kubernetes_manifest" "alb_class_params" {
   }
 }
 
+// The kubernetes_manifest resource errors out unless a k8s endpoint is readily available, so we use this instead.
+resource "kubectl_manifest" "alb_class_params" {
+  yaml_body = yamlencode(local.alb_class_params)
+}
+
 resource "kubernetes_ingress_class_v1" "alb_class" {
   metadata {
     name = "alb"
     annotations = {
-      // If an ingress doesn't specify a class, use this one.
       "ingressclass.kubernetes.io/is-default-class" = "true"
     }
   }
@@ -25,7 +30,9 @@ resource "kubernetes_ingress_class_v1" "alb_class" {
     parameters {
       api_group = "eks.amazonaws.com"
       kind = "IngressClassParams"
-      name = kubernetes_manifest.alb_class_params.manifest.metadata.name
+      name = local.alb_class_params.metadata.name
     }
   }
+
+  depends_on = [kubectl_manifest.alb_class_params]
 }
