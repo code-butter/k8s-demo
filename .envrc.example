@@ -1,0 +1,4 @@
+export AWS_REGION=us-west-1
+export TF_VAR_aws_region=us-west-1
+export AWS_ACCOUNT_ID=your_aws_account_id
+export TF_VAR_aws_account_id=your_aws_account_id

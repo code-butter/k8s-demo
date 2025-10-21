@@ -5,6 +5,7 @@ resource "aws_ecr_repository" "k8s_demo" {
 }
 
 # Use for pulling images into minikube. You will need to set up credentials in the AWS console
+# Alternatively the deploy script in the project root folder loads the image into minikube when building
 resource "aws_iam_user" "k8s_demo" {
   name = "k8s-demo"
 }
